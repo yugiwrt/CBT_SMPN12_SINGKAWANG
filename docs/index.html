@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>CBT Digital • SMPN 12 Singkawang</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          colors: { brand: { DEFAULT: '#1E4DB7', dark: '#163A8A', light: '#EBF2FF' } }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="font-sans bg-[#F3F6FC] text-slate-900 antialiased">
+  <div id="app-root"></div>
+
+  <script type="module">
+    import { callGasApi } from './js/api.js';
+    import { renderStudentPortal } from './js/views/studentView.js';
+    import { renderTeacherPortal } from './js/views/teacherView.js';
+    import { renderAdminPortal } from './js/views/adminView.js';
+
+    function bootApp() {
+      const savedUser = localStorage.getItem('cbt_user');
+      const token = localStorage.getItem('cbt_token');
+      if (savedUser && token) {
+        const user = JSON.parse(savedUser);
+        if (user.role === 'SISWA') return renderStudentPortal(user);
+        if (user.role === 'GURU') return renderTeacherPortal(user);
+        if (user.role === 'ADMIN') return renderAdminPortal(user);
+      }
+      renderLoginScreen();
+    }
+
+    function renderLoginScreen() {
+      const root = document.getElementById('app-root');
+      root.innerHTML = `
+        <div class="min-h-screen flex flex-col">
+          <div class="fixed top-3 right-3 z-40 bg-white border border-slate-200 rounded-full p-1 shadow-sm flex text-xs font-bold">
+            <button id="sw-siswa" class="px-3.5 py-1.5 rounded-full bg-brand text-white">Portal Siswa</button>
+            <button id="sw-staff" class="px-3.5 py-1.5 rounded-full text-slate-600">Guru / Admin</button>
+          </div>
+
+          <!-- Login Siswa (Mobile-First) -->
+          <div id="box-siswa" class="flex-1 flex flex-col items-center justify-center bg-gradient-to-b from-[#1E4DB7] via-[#1E4DB7] to-[#F3F6FC] to-[42%] px-4 py-12">
+            <div class="text-center text-white mb-6">
+              <h1 class="text-2xl font-extrabold">SMPN 12 Singkawang</h1>
+              <p class="text-blue-200 text-xs mt-1">Ujian Digital • Portal Asesmen Siswa</p>
+            </div>
+            <form id="f-siswa" class="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 space-y-4">
+              <div class="flex justify-between items-center"><h2 class="font-bold text-base">● Autentikasi Siswa</h2><span class="text-[11px] font-bold bg-brand-light text-brand px-2 py-0.5 rounded">CBT ONLINE</span></div>
+              <div><label class="text-xs font-bold">NISN (10 Digit)</label><input id="in-nisn" type="text" inputmode="numeric" maxlength="10" required placeholder="0089271625" class="w-full h-12 px-4 rounded-xl bg-slate-100 mt-1 text-base" /></div>
+              <div><label class="text-xs font-bold">Token Ujian</label><input id="in-token" type="text" required placeholder="MAT99X" class="w-full h-12 px-4 rounded-xl bg-slate-100 mt-1 text-base font-bold uppercase tracking-widest" /></div>
+              <p id="err-siswa" class="hidden text-xs text-red-600 font-semibold"></p>
+              <button type="submit" class="w-full h-12 bg-brand text-white font-bold rounded-xl shadow">Masuk Ujian →</button>
+            </form>
+          </div>
+
+          <!-- Login Guru & Admin (Split-Screen) -->
+          <div id="box-staff" class="hidden flex-1 grid grid-cols-1 lg:grid-cols-2 min-h-screen">
+            <div class="hidden lg:flex flex-col justify-between bg-gradient-to-br from-[#1E4DB7] to-[#113285] text-white p-12">
+              <div><p class="text-xs font-bold uppercase text-blue-200">Portal Pendidik CBT</p><h2 class="text-xl font-bold">SMPN 12 Singkawang</h2></div>
+              <div><h1 class="text-4xl font-extrabold leading-tight">Ujian Digital yang Mudah dan Terkontrol</h1><p class="text-blue-200 text-sm mt-4">Bank soal terverifikasi, pemantauan anti-curang real-time, dan rekap nilai otomatis.</p></div>
+              <p class="text-xs text-blue-200">● Server CBT 12-SKW Online</p>
+            </div>
+            <div class="flex items-center justify-center p-6">
+              <div class="w-full max-w-md bg-white rounded-2xl shadow-lg p-7">
+                <h2 class="text-2xl font-extrabold">Selamat Datang</h2>
+                <div class="grid grid-cols-2 bg-slate-100 p-1 rounded-xl my-5 text-xs font-bold">
+                  <button id="t-guru" class="py-2 rounded-lg bg-white text-brand shadow-sm">Guru</button>
+                  <button id="t-admin" class="py-2 rounded-lg text-slate-500">Admin</button>
+                </div>
+                <form id="f-guru" class="space-y-4">
+                  <div><label class="text-xs font-bold">Nama Lengkap Pendidik *</label><input id="g-nama" required placeholder="Ratna Sari, S.Pd." class="w-full h-11 px-3.5 rounded-xl bg-slate-100 mt-1 text-sm" /></div>
+                  <div><label class="text-xs font-bold">NIP *</label><input id="g-nip" required placeholder="198503242010012015" class="w-full h-11 px-3.5 rounded-xl bg-slate-100 mt-1 text-sm" /></div>
+                  <p id="err-guru" class="hidden text-xs text-red-600 font-semibold"></p>
+                  <button type="submit" class="w-full h-12 bg-brand text-white font-bold rounded-xl text-sm">Masuk ke Portal Pendidik →</button>
+                </form>
+                <form id="f-admin" class="hidden space-y-4">
+                  <div><label class="text-xs font-bold">Username *</label><input id="a-user" required placeholder="admin" class="w-full h-11 px-3.5 rounded-xl bg-slate-100 mt-1 text-sm" /></div>
+                  <div><label class="text-xs font-bold">Password *</label><input id="a-pass" type="password" required placeholder="••••••••" class="w-full h-11 px-3.5 rounded-xl bg-slate-100 mt-1 text-sm" /></div>
+                  <p id="err-admin" class="hidden text-xs text-red-600 font-semibold"></p>
+                  <button type="submit" class="w-full h-12 bg-brand text-white font-bold rounded-xl text-sm">Masuk sebagai Admin →</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>`;
+
+      document.getElementById('sw-siswa').onclick = () => {
+        document.getElementById('box-siswa').classList.remove('hidden');
+        document.getElementById('box-staff').classList.add('hidden');
+      };
+      document.getElementById('sw-staff').onclick = () => {
+        document.getElementById('box-siswa').classList.add('hidden');
+        document.getElementById('box-staff').classList.remove('hidden');
+      };
+      document.getElementById('t-guru').onclick = () => {
+        document.getElementById('f-guru').classList.remove('hidden');
+        document.getElementById('f-admin').classList.add('hidden');
+      };
+      document.getElementById('t-admin').onclick = () => {
+        document.getElementById('f-guru').classList.add('hidden');
+        document.getElementById('f-admin').classList.remove('hidden');
+      };
+
+      const bindLogin = (formId, action, getPayload, errId) => {
+        document.getElementById(formId).onsubmit = async (e) => {
+          e.preventDefault();
+          const errEl = document.getElementById(errId);
+          errEl.classList.add('hidden');
+          const res = await callGasApi(action, getPayload());
+          if (!res.ok) { errEl.textContent = res.message; errEl.classList.remove('hidden'); }
+          else { localStorage.setItem('cbt_token', res.token); localStorage.setItem('cbt_user', JSON.stringify(res.user)); bootApp(); }
+        };
+      };
+
+      bindLogin('f-siswa', 'loginSiswa', () => ({ nisn: document.getElementById('in-nisn').value, examToken: document.getElementById('in-token').value }), 'err-siswa');
+      bindLogin('f-guru', 'loginGuru', () => ({ nama: document.getElementById('g-nama').value, nip: document.getElementById('g-nip').value }), 'err-guru');
+      bindLogin('f-admin', 'loginAdmin', () => ({ username: document.getElementById('a-user').value, password: document.getElementById('a-pass').value }), 'err-admin');
+    }
+
+    bootApp();
+  </script>
+</body>
+</html>
